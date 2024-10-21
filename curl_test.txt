@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Function to perform curl POST and check response
+check_curl_post() {
+    local url="$1"
+    local data="$2"
+    local expected_status="$3"
+    local headers="$4"
+
+    # Perform curl POST request
+    response=$(curl -s -w "%{http_code}" -X POST -H "Content-Type: application/json" $headers -d "$data" "$url")
+
+    # Extract the HTTP status code
+    http_status="${response: -3}"
+    # Extract the response body (removing the last 3 characters which are the status code)
+    body="${response:0:${#response}-3}"
+
+    # Check if the status code matches the expected status
+    if [ "$http_status" = "$expected_status" ]; then
+        echo "Success: Received expected status code $http_status"
+        echo "Response body:"
+        echo "$body"
+        return 0
+    else
+        echo "Error: Expected status code $expected_status, but received $http_status"
+        echo "Response body:"
+        echo "$body"
+        return 1
+    fi
+}
+
+# Example usage
+url="https://api.example.com/endpoint"
+data='{"key": "value"}'
+expected_status="200"
+headers="-H \"Authorization: Bearer YOUR_TOKEN\""
+
+check_curl_post "$url" "$data" "$expected_status" "$headers"
+
+# Check the return value of the function
+if [ $? -eq 0 ]; then
+    echo "POST request was successful"
+else
+    echo "POST request failed"
+    exit 1
+fi
