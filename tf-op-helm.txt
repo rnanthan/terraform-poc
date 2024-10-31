@@ -1,0 +1,96 @@
+# 1. Clone the official chart repository
+git clone https://github.com/hashicorp/terraform-cloud-operator.git
+cd terraform-cloud-operator/charts/terraform-cloud-operator
+
+# 2. Create new private repository (example using GitHub CLI)
+gh repo create my-terraform-operator-chart --private
+# Or manually create through your Git provider's interface
+
+# 3. Update remote and push to private repo
+git remote rename origin upstream
+git remote add origin git@github.com:your-org/my-terraform-operator-cart.git
+git push -u origin main
+
+# 4. Create values.yaml for your deployment
+cat << EOF > values.yaml
+operatorVersion: v2
+
+# Operator image configuration
+image:
+  repository: hashicorp/terraform-cloud-operator
+  tag: "v2.3.0"  # Check latest version
+  pullPolicy: IfNotPresent
+
+# Agent configuration
+daemon:
+  enabled: true
+  image:
+    repository: hashicorp/terraform-cloud-agent
+    tag: "1.12.0"  # Check latest version
+    pullPolicy: IfNotPresent
+
+  # Agent pool settings
+  agentPool:
+    enabled: true
+    name: "k8s-agent-pool"
+    count: 3
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+# Authentication configuration
+authentication:
+  token:
+    secretName: "terraform-cloud-credentials"
+    secretKey: "token"
+
+# Optional: For TF Enterprise
+# hostname: "your-tfe-hostname.com"
+
+serviceAccount:
+  create: true
+  annotations: {}
+    # eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ROLE_NAME>"
+
+# Security settings
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+EOF
+
+# 5. Create namespace
+kubectl create namespace terraform-cloud-operator
+
+# 6. Create secret for TF Cloud/Enterprise token
+kubectl create secret generic terraform-cloud-credentials \
+  --namespace terraform-cloud-operator \
+  --from-literal=token=your-terraform-token
+
+# 7. Optional: If using private registry, create pull secret
+kubectl create secret docker-registry registry-credentials \
+  --docker-server=your-registry.com \
+  --docker-username=your-username \
+  --docker-password=your-password \
+  --namespace terraform-cloud-operator
+
+# 8. Package and install the Helm chart
+helm package .
+helm install terraform-cloud-operator . \
+  --namespace terraform-cloud-operator \
+  --values values.yaml
+
+# 9. Verify installation
+kubectl get pods -n terraform-cloud-operator
