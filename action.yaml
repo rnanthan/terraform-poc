@@ -1,0 +1,82 @@
+# action.yml
+name: 'Setup Kubectl and Helm'
+description: 'Setup kubectl and Helm with specified versions and optional cluster configuration'
+inputs:
+  kubectl-version:
+    description: 'Version of kubectl to install'
+    required: false
+    default: 'latest'
+  helm-version:
+    description: 'Version of Helm to install'
+    required: false
+    default: 'latest'
+  kube-config:
+    description: 'Base64 encoded kubeconfig file'
+    required: false
+  context-name:
+    description: 'Kubernetes context to use'
+    required: false
+  helm-repositories:
+    description: 'JSON array of Helm repositories to add (format: [{"name": "repo-name", "url": "repo-url"}])'
+    required: false
+    default: '[]'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download kubectl
+      shell: bash
+      run: |
+        if [ "${{ inputs.kubectl-version }}" = "latest" ]; then
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        else
+          curl -LO "https://dl.k8s.io/release/v${{ inputs.kubectl-version }}/bin/linux/amd64/kubectl"
+        fi
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        echo "kubectl version:"
+        kubectl version --client
+
+    - name: Download Helm
+      shell: bash
+      run: |
+        if [ "${{ inputs.helm-version }}" = "latest" ]; then
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        else
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          export DESIRED_VERSION="v${{ inputs.helm-version }}"
+        fi
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+        rm get_helm.sh
+        echo "Helm version:"
+        helm version
+
+    - name: Configure kubectl
+      if: inputs.kube-config != ''
+      shell: bash
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ inputs.kube-config }}" | base64 -d > $HOME/.kube/config
+        chmod 600 $HOME/.kube/config
+        if [ ! -z "${{ inputs.context-name }}" ]; then
+          kubectl config use-context ${{ inputs.context-name }}
+        fi
+
+    - name: Add Helm repositories
+      if: inputs.helm-repositories != '[]'
+      shell: bash
+      run: |
+        repositories='${{ inputs.helm-repositories }}'
+        echo "$repositories" | jq -c '.[]' | while read -r repo; do
+          name=$(echo $repo | jq -r '.name')
+          url=$(echo $repo | jq -r '.url')
+          echo "Adding Helm repository: $name - $url"
+          helm repo add "$name" "$url"
+        done
+        helm repo update
+
+branding:
+  icon: 'box'
+  color: 'blue'
+Last edited 4 hours ago
