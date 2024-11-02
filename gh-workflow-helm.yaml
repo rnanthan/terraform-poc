@@ -1,0 +1,110 @@
+name: Deploy Helm Chart to EKS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'helm/**'
+      - '.github/workflows/helm-deploy.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'helm/**'
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  AWS_REGION: us-west-2  # Change this to your AWS region
+  EKS_CLUSTER_NAME: your-cluster-name  # Change this to your cluster name
+  HELM_CHART_PATH: ./helm/chart  # Change this to your chart path
+  HELM_RELEASE_NAME: terraform-operator
+  HELM_VALUES_PATH: ./helm/values
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.13.1
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add hashicorp https://helm.releases.hashicorp.com
+          helm repo update
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace terraform-operator --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Generate values file with environment variables
+        run: |
+          # Create values file from template and replace variables
+          envsubst < ${{ env.HELM_VALUES_PATH }}/${{ github.event.inputs.environment || 'staging' }}.yaml > values.yaml
+
+      - name: Validate Helm chart
+        run: |
+          helm lint ${{ env.HELM_CHART_PATH }} -f values.yaml
+
+      - name: Deploy Helm chart
+        run: |
+          helm upgrade --install ${{ env.HELM_RELEASE_NAME }} ${{ env.HELM_CHART_PATH }} \
+            --namespace terraform-operator \
+            -f values.yaml \
+            --atomic \
+            --timeout 10m \
+            --set operator.image.tag=${{ github.sha }} \
+            --set replicaCount=2 \
+            --set operator.tfeAddress=${{ secrets.TFE_ADDRESS }} \
+            --set-string "tolerations[0].key=dedicated" \
+            --set-string "tolerations[0].operator=Equal" \
+            --set-string "tolerations[0].value=terraform" \
+            --set-string "tolerations[0].effect=NoSchedule"
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/${{ env.HELM_RELEASE_NAME }} -n terraform-operator --timeout=5m
+
+      - name: Get deployment status
+        if: success()
+        run: |
+          echo "Deployment Status:"
+          kubectl get deployments -n terraform-operator
+          echo "Pod Status:"
+          kubectl get pods -n terraform-operator
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          helm rollback ${{ env.HELM_RELEASE_NAME }} -n terraform-operator
+          echo "Deployment failed. Rolling back to previous release."
