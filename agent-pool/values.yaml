@@ -1,0 +1,32 @@
+namespace: hcp-terraform-operator
+
+organization: cba
+
+token:
+  secretName: hcp-terraform-operator-credentials
+  secretKey: token
+
+agentPool:
+  name: cba-agent-pool
+  tokenName: cba-agent-pool-token
+
+agentDeployment:
+  replicas: 1
+  containerName: tfc-agent
+  image: "730335654813.dkr.ecr.ap-southeast-2.amazonaws.com/tfc-agent-custom"
+  tfConfigPath: "/home/tfc-agent/.terraformrc"
+  httpProxy: "http://app-proxy:3128"
+  httpsProxy: "http://app-proxy:3128"
+  noProxy: "172.0.0.0/8,169.254.169.254,localhost,127.0.0.1,s3.ap-southeast-2"
+
+tolerations:
+  key: team
+  operator: Equal
+  value: Platform
+  effect: NoSchedule
+
+autoscaling:
+  minReplicas: 1
+  maxReplicas: 10
+  scaleUpSeconds: 30
+  scaleDownSeconds: 30

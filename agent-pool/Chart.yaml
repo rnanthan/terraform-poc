@@ -1,0 +1,5 @@
+apiVersion: v2
+name: hcp-terraform-operator
+description: A Helm chart for HCP Terraform Operator Agent Pool
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,40 @@
+apiVersion: app.terraform.io/v1alpha2
+kind: AgentPool
+metadata:
+  name: {{ .Values.agentPool.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  organization: {{ .Values.organization }}
+  token:
+    secretKeyRef:
+      name: {{ .Values.token.secretName }}
+      key: {{ .Values.token.secretKey }}
+  name: {{ .Values.agentPool.name }}
+  agentTokens:
+    - name: {{ .Values.agentPool.tokenName }}
+  agentDeployment:
+    replicas: {{ .Values.agentDeployment.replicas }}
+    spec:
+      containers:
+        - name: {{ .Values.agentDeployment.containerName }}
+          image: {{ .Values.agentDeployment.image }}
+          env:
+            - name: TF_CLI_CONFIG_FILE
+              value: {{ .Values.agentDeployment.tfConfigPath }}
+            - name: HTTP_PROXY
+              value: {{ .Values.agentDeployment.httpProxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.agentDeployment.httpsProxy }}
+            - name: NO_PROXY
+              value: {{ .Values.agentDeployment.noProxy }}
+      tolerations:
+        - key: {{ .Values.tolerations.key }}
+          operator: {{ .Values.tolerations.operator }}
+          value: {{ .Values.tolerations.value }}
+          effect: {{ .Values.tolerations.effect }}
+    autoscaling:
+      minReplicas: {{ .Values.autoscaling.minReplicas }}
+      maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+      cooldownPeriod:
+        scaleUpSeconds: {{ .Values.autoscaling.scaleUpSeconds }}
+        scaleDownSeconds: {{ .Values.autoscaling.scaleDownSeconds }}

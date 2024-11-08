@@ -1,0 +1,4 @@
+helm create hcp-terraform-operator
+helm install agent-pool ./hcp-terraform-operator
+helm install agent-pool ./hcp-terraform-operator --values custom-values.yaml
+helm upgrade agent-pool ./hcp-terraform-operator --values custom-values.yaml
