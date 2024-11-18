@@ -1,0 +1,123 @@
+# Configure the GitHub Provider with GitHub App authentication
+provider "github" {
+  owner = var.github_owner
+  app_auth {
+    id              = var.github_app_id
+    installation_id = var.github_app_installation_id
+    pem_file        = var.github_app_pem_file
+  }
+}
+
+# Variables
+variable "github_owner" {
+  description = "GitHub organization or user name"
+  type        = string
+}
+
+variable "github_app_id" {
+  description = "GitHub App ID"
+  type        = string
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App Installation ID"
+  type        = string
+}
+
+variable "github_app_pem_file" {
+  description = "Path to the GitHub App private key PEM file"
+  type        = string
+}
+
+variable "template_repo" {
+  description = "Name of the template repository"
+  type        = string
+}
+
+variable "template_owner" {
+  description = "Owner of the template repository"
+  type        = string
+}
+
+variable "new_repo_name" {
+  description = "Name for the new repository"
+  type        = string
+}
+
+variable "repo_description" {
+  description = "Description for the new repository"
+  type        = string
+  default     = ""
+}
+
+variable "repository_variables" {
+  description = "Map of repository variables"
+  type = map(object({
+    value     = string
+    sensitive = bool
+  }))
+  default = {}
+}
+
+variable "environment_variables" {
+  description = "Map of environment names to their variables"
+  type = map(map(object({
+    value     = string
+    sensitive = bool
+  })))
+  default = {}
+}
+
+# Create repository from template
+resource "github_repository" "repo" {
+  name        = var.new_repo_name
+  description = var.repo_description
+  
+  template {
+    owner      = var.template_owner
+    repository = var.template_repo
+  }
+
+  visibility = "private"  # Change if needed
+  has_issues = true
+  has_wiki   = true
+}
+
+# Create repository variables
+resource "github_actions_variable" "repo_vars" {
+  for_each = var.repository_variables
+
+  repository    = github_repository.repo.name
+  variable_name = each.key
+  value         = each.value.value
+}
+
+# Create environments and their variables
+resource "github_repository_environment" "environments" {
+  for_each = var.environment_variables
+
+  repository  = github_repository.repo.name
+  environment = each.key
+}
+
+resource "github_actions_environment_variable" "env_vars" {
+  for_each = merge([
+    for env_name, vars in var.environment_variables : {
+      for var_name, var_config in vars : "${env_name}:${var_name}" => {
+        environment = env_name
+        name        = var_name
+        value       = var_config.value
+      }
+    }
+  ]...)
+
+  repository    = github_repository.repo.name
+  environment   = each.value.environment
+  variable_name = each.value.name
+  value         = each.value.value
+}
+
+# Outputs
+output "repository_url" {
+  value = github_repository.repo.html_url
+}
