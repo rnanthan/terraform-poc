@@ -1,0 +1,164 @@
+name: Terraform Pre-commit Checks
+
+on:
+  pull_request:
+    paths:
+      - '**/*.tf'
+      - '**/*.tfvars'
+      - '.github/workflows/terraform-precommit.yml'
+  push:
+    branches: [ main, development ]
+    paths:
+      - '**/*.tf'
+      - '**/*.tfvars'
+      - '.github/workflows/terraform-precommit.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform-pre-commit:
+    name: Terraform Pre-commit Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all tags and branches
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+          terraform_wrapper: false
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: "v0.50.0"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Setup pre-commit
+        run: |
+          pip install pre-commit
+          pip install checkov
+
+      - name: Find Terraform Directories
+        id: find_dirs
+        run: |
+          DIRS=$(find . -type f -name "*.tf" -exec dirname {} \; | sort -u)
+          echo "terraform_dirs=${DIRS}" >> $GITHUB_OUTPUT
+
+      - name: Terraform Format Check
+        id: fmt_check
+        run: |
+          EXIT_CODE=0
+          for dir in ${{ steps.find_dirs.outputs.terraform_dirs }}; do
+            echo "Checking formatting in: $dir"
+            if ! terraform -chdir="$dir" fmt -check -recursive -diff; then
+              EXIT_CODE=1
+              echo "::error::Formatting issues found in $dir"
+            fi
+          done
+          exit $EXIT_CODE
+
+      - name: Initialize Terraform
+        id: init
+        run: |
+          for dir in ${{ steps.find_dirs.outputs.terraform_dirs }}; do
+            echo "Initializing Terraform in: $dir"
+            terraform -chdir="$dir" init -backend=false
+          done
+
+      - name: Terraform Validate
+        id: validate
+        run: |
+          EXIT_CODE=0
+          for dir in ${{ steps.find_dirs.outputs.terraform_dirs }}; do
+            echo "Validating Terraform in: $dir"
+            if ! terraform -chdir="$dir" validate; then
+              EXIT_CODE=1
+              echo "::error::Validation failed in $dir"
+            fi
+          done
+          exit $EXIT_CODE
+
+      - name: Run TFLint
+        id: tflint
+        run: |
+          EXIT_CODE=0
+          for dir in ${{ steps.find_dirs.outputs.terraform_dirs }}; do
+            echo "Running TFLint in: $dir"
+            cd $dir
+            tflint --init
+            if ! tflint --format=compact; then
+              EXIT_CODE=1
+              echo "::error::TFLint found issues in $dir"
+            fi
+            cd $GITHUB_WORKSPACE
+          done
+          exit $EXIT_CODE
+
+      - name: Run Checkov
+        id: checkov
+        run: |
+          EXIT_CODE=0
+          for dir in ${{ steps.find_dirs.outputs.terraform_dirs }}; do
+            echo "Running Checkov in: $dir"
+            if ! checkov -d "$dir" --framework terraform --skip-check CKV_AWS_115,CKV_AWS_116; then
+              EXIT_CODE=1
+              echo "::error::Checkov found security issues in $dir"
+            fi
+          done
+          exit $EXIT_CODE
+
+      - name: Check for Documentation
+        if: always()
+        run: |
+          EXIT_CODE=0
+          for dir in ${{ steps.find_dirs.outputs.terraform_dirs }}; do
+            if [ ! -f "$dir/README.md" ]; then
+              echo "::warning::Missing README.md in $dir"
+              EXIT_CODE=1
+            fi
+            
+            if [ ! -f "$dir/variables.tf" ] || ! grep -q "variable" "$dir/variables.tf"; then
+              echo "::warning::Missing or empty variables.tf in $dir"
+              EXIT_CODE=1
+            fi
+          done
+          exit $EXIT_CODE
+
+      - name: Create Pre-commit Summary
+        if: always()
+        run: |
+          echo "### Terraform Pre-commit Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Format | ${{ steps.fmt_check.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Init | ${{ steps.init.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Validate | ${{ steps.validate.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TFLint | ${{ steps.tflint.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Checkov | ${{ steps.checkov.outcome == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && (failure() || success())
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: summary
+            });

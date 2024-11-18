@@ -1,0 +1,205 @@
+on:
+  push:
+    branches: [ develop ]
+    paths:
+      - '**.tf'
+      - '**.tfvars'
+      - '.github/workflows/**'
+  pull_request:
+    types: [opened, synchronized, reopened, closed]
+    branches: [ develop, main ]
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  terraform-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Initialize Terraform
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+  dev-deploy:
+    needs: terraform-checks
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Initialize Terraform
+        run: |
+          terraform init \
+            -backend-config="hostname=tfe.your-domain.com" \
+            -backend-config="organization=your-organization-name" \
+            -backend-config="workspaces.name=dev-workspace"
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Apply
+        if: github.event_name != 'pull_request'
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+  create-test-pr:
+    needs: dev-deploy
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request to Test
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: staging
+          base: test
+          title: '[Automated] Promote Development to Test'
+          body: |
+            Automated PR to promote changes from Development to Test environment.
+            
+            Please review the changes and approve if ready for testing.
+
+  test-deploy:
+    needs: [terraform-checks]
+    if: github.base_ref == 'test' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Initialize Terraform
+        run: |
+          terraform init \
+            -backend-config="hostname=tfe.your-domain.com" \
+            -backend-config="organization=your-organization-name" \
+            -backend-config="workspaces.name=test-workspace"
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+  create-prod-pr:
+    needs: test-deploy
+    if: github.base_ref == 'test' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request to Main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release
+          base: main
+          title: '[Automated] Promote Test to Production'
+          body: |
+            Automated PR to promote changes from Test to Production environment.
+            
+            Please review the changes and approve if ready for production deployment.
+            This will trigger a release creation upon merge.
+
+  create-release:
+    needs: [terraform-checks]
+    if: github.event.pull_request.merged == true && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            Release of changes to production environment.
+            
+            Changes included in this release:
+            ${{ github.event.pull_request.body }}
+          draft: false
+          prerelease: false
+
+  prod-deploy:
+    needs: [terraform-checks]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Initialize Terraform
+        run: |
+          terraform init \
+            -backend-config="hostname=tfe.your-domain.com" \
+            -backend-config="organization=your-organization-name" \
+            -backend-config="workspaces.name=prod-workspace"
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
