@@ -1,0 +1,96 @@
+# Configure the GitHub Provider
+terraform {
+  required_providers {
+    github = {
+      source  = "integrations/github"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "github" {
+  # Token can be provided via GITHUB_TOKEN environment variable
+}
+
+# Variables
+variable "org_name" {
+  description = "GitHub organization name"
+  type        = string
+}
+
+variable "repo_name" {
+  description = "Repository name"
+  type        = string
+}
+
+variable "description" {
+  description = "Repository description"
+  type        = string
+  default     = ""
+}
+
+variable "visibility" {
+  description = "Repository visibility"
+  type        = string
+  default     = "private"
+  validation {
+    condition     = contains(["private", "public"], var.visibility)
+    error_message = "Visibility must be either private or public."
+  }
+}
+
+# Local variable to handle repository existence check
+locals {
+  repo_exists = can(data.github_repository.existing[0].id)
+}
+
+# Data source to check if repository exists
+data "github_repository" "existing" {
+  count = 1
+  name  = var.repo_name
+  
+  lifecycle {
+    postcondition {
+      condition     = true
+      error_message = ""
+    }
+  }
+}
+
+# Resource for managing the repository
+resource "github_repository" "repo" {
+  name        = var.repo_name
+  description = var.description
+  visibility  = var.visibility
+
+  # Common repository settings
+  has_issues      = true
+  has_wiki        = true
+  has_projects    = true
+  has_downloads   = true
+  auto_init       = true
+
+  # This prevents recreation of the repository
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      auto_init,
+      has_downloads,
+      has_issues,
+      has_projects,
+      has_wiki,
+    ]
+  }
+
+  # Create only if repository doesn't exist
+  count = local.repo_exists ? 0 : 1
+}
+
+# Output that works whether repo existed or was created
+output "repository_url" {
+  value = local.repo_exists ? data.github_repository.existing[0].html_url : github_repository.repo[0].html_url
+}
+
+output "repository_status" {
+  value = local.repo_exists ? "Repository already existed" : "Repository was created"
+}
