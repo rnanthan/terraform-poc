@@ -1,0 +1,62 @@
+# .github/workflows/create-from-template.yml
+name: Create Repository from Template
+
+on:
+  workflow_dispatch:
+    inputs:
+      template_owner:
+        description: 'Template repository owner'
+        required: true
+      template_repo:
+        description: 'Template repository name'
+        required: true
+      repo_name:
+        description: 'New repository name'
+        required: true
+      repo_description:
+        description: 'Repository description'
+        required: false
+        default: ''
+      repo_visibility:
+        description: 'Repository visibility'
+        required: true
+        default: 'private'
+        type: choice
+        options:
+          - private
+          - public
+      include_all_branches:
+        description: 'Include all branches'
+        required: true
+        default: false
+        type: boolean
+      enable_actions:
+        description: 'Enable GitHub Actions'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  create-repository:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Repository from Template
+        uses: ./.github/actions/create-from-template  # Local reference
+        # Or use your published action:
+        # uses: your-username/create-from-template-action@v1
+        id: create_repo
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          template_owner: ${{ inputs.template_owner }}
+          template_repo: ${{ inputs.template_repo }}
+          repo_name: ${{ inputs.repo_name }}
+          repo_description: ${{ inputs.repo_description }}
+          repo_visibility: ${{ inputs.repo_visibility }}
+          include_all_branches: ${{ inputs.include_all_branches }}
+          enable_actions: ${{ inputs.enable_actions }}
+
+      - name: Show Results
+        if: steps.create_repo.outputs.created == 'true'
+        run: |
+          echo "Repository URL: ${{ steps.create_repo.outputs.repository_url }}"
+          echo "Repository created successfully from template!"
