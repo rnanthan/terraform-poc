@@ -1,0 +1,47 @@
+name: 'GitHub Repository Variable Manager'
+description: 'Create or update GitHub repository variables with ease'
+
+
+branding:
+  icon: 'settings'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'GitHub token with repository access'
+    required: true
+  variable-name:
+    description: 'Name of the variable to create/update'
+    required: true
+  variable-value:
+    description: 'Value to set for the variable'
+    required: true
+  repository:
+    description: 'Repository in format owner/repo'
+    required: false
+    default: ${{ github.repository }}
+
+outputs:
+  status:
+    description: 'Status of the operation (created/updated)'
+    value:
+  variable-name:
+    description: 'Name of the variable that was created/updated'
+    value:
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up environment
+      shell: bash
+      run: |
+        chmod +x ${{ github.action_path }}/scripts/manage-variable.sh
+
+    - name: Execute variable management script
+      shell: bash
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_VARIABLE_NAME: ${{ inputs.variable-name }}
+        INPUT_VARIABLE_VALUE: ${{ inputs.variable-value }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+      run: ${{ github.action_path }}/scripts/manage-variable.sh
