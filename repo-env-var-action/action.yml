@@ -1,0 +1,52 @@
+# action.yml
+name: 'GitHub Environment Variable Manager'
+description: 'Create or update a single GitHub repository environment variable'
+author: 'Your Name'
+
+branding:
+  icon: 'settings'
+  color: 'green'
+
+inputs:
+  github-token:
+    description: 'GitHub token with repository access'
+    required: true
+  environment:
+    description: 'Name of the environment'
+    required: true
+  variable-name:
+    description: 'Name of the environment variable'
+    required: true
+  variable-value:
+    description: 'Value of the environment variable'
+    required: true
+  repository:
+    description: 'Repository in format owner/repo'
+    required: false
+    default: ${{ github.repository }}
+
+outputs:
+  status:
+    description: 'Status of the operation (created/updated)'
+    value:
+  variable-name:
+    description: 'Name of the variable that was processed'
+    value:
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up environment
+      shell: bash
+      run: |
+        chmod +x ${{ github.action_path }}/scripts/manage-env-variable.sh
+    
+    - name: Execute environment variable management script
+      shell: bash
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_VARIABLE_NAME: ${{ inputs.variable-name }}
+        INPUT_VARIABLE_VALUE: ${{ inputs.variable-value }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+      run: ${{ github.action_path }}/scripts/manage-env-variable.sh
