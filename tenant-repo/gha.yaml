@@ -1,0 +1,164 @@
+# action.yml
+name: 'Create Repository from Template'
+description: 'Creates a new GitHub repository from a template repository'
+
+inputs:
+  token:
+    description: 'GitHub Personal Access Token with repo permissions'
+    required: true
+  template_owner:
+    description: 'Owner of the template repository'
+    required: true
+  template_repo:
+    description: 'Name of the template repository'
+    required: true
+  repo_name:
+    description: 'Name of the new repository'
+    required: true
+  repo_description:
+    description: 'Description of the new repository'
+    required: false
+    default: ''
+  repo_visibility:
+    description: 'Repository visibility (private/public)'
+    required: false
+    default: 'private'
+  owner:
+    description: 'Owner for the new repository (user or organization)'
+    required: false
+    default: ${{ github.repository_owner }}
+  include_all_branches:
+    description: 'Include all branches from template'
+    required: false
+    default: 'false'
+  enable_actions:
+    description: 'Enable GitHub Actions in new repository'
+    required: false
+    default: 'true'
+  update_vars:
+    description: 'Update repository variables after creation'
+    required: false
+    default: 'true'
+
+outputs:
+  repository_url:
+    description: 'URL of the created repository'
+    value: ${{ steps.create_repo.outputs.repo_url }}
+  created:
+    description: 'Whether the repository was created (true) or already existed (false)'
+    value: ${{ steps.check_repo.outputs.created }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check if repository exists
+      id: check_repo
+      shell: bash
+      run: |
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Authorization: token ${{ inputs.token }}" \
+          "https://api.github.com/repos/${{ inputs.owner }}/${{ inputs.repo_name }}")
+        if [ "$HTTP_STATUS" -eq "200" ]; then
+          echo "Repository already exists"
+          echo "created=false" >> $GITHUB_OUTPUT
+          echo "repo_url=https://github.com/${{ inputs.owner }}/${{ inputs.repo_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "Repository does not exist"
+          echo "created=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Verify template repository exists
+      if: steps.check_repo.outputs.created == 'true'
+      shell: bash
+      run: |
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Authorization: token ${{ inputs.token }}" \
+          "https://api.github.com/repos/${{ inputs.template_owner }}/${{ inputs.template_repo }}")
+        if [ "$HTTP_STATUS" -ne "200" ]; then
+          echo "Error: Template repository does not exist"
+          exit 1
+        fi
+
+    - name: Create repository from template
+      id: create_repo
+      if: steps.check_repo.outputs.created == 'true'
+      shell: bash
+      run: |
+        response=$(curl -s -X POST \
+          -H "Authorization: token ${{ inputs.token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ inputs.template_owner }}/${{ inputs.template_repo }}/generate" \
+          -d '{
+            "owner": "${{ inputs.owner }}",
+            "name": "${{ inputs.repo_name }}",
+            "description": "${{ inputs.repo_description }}",
+            "private": ${{ inputs.repo_visibility == 'private' }},
+            "include_all_branches": ${{ inputs.include_all_branches }}
+          }')
+        
+        if echo "$response" | grep -q '"html_url":'; then
+          echo "Repository created successfully!"
+          REPO_URL=$(echo "$response" | grep -o '"html_url": "[^"]*' | cut -d'"' -f4)
+          echo "repo_url=$REPO_URL" >> $GITHUB_OUTPUT
+        else
+          echo "Error creating repository:"
+          echo "$response"
+          exit 1
+        fi
+
+    - name: Configure repository settings
+      if: steps.check_repo.outputs.created == 'true'
+      shell: bash
+      run: |
+        # Enable/disable GitHub Actions
+        curl -s -X PUT \
+          -H "Authorization: token ${{ inputs.token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ inputs.owner }}/${{ inputs.repo_name }}/actions/permissions" \
+          -d "{\"enabled\": ${{ inputs.enable_actions }}}"
+
+    - name: Update repository variables
+      if: inputs.update_vars == 'true' && steps.check_repo.outputs.created == 'true'
+      shell: bash
+      run: |
+        # Function to set repository variable
+        set_repo_var() {
+          local var_name=$1
+          local var_value=$2
+          
+          curl -s -X POST \
+            -H "Authorization: token ${{ inputs.token }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ inputs.owner }}/${{ inputs.repo_name }}/actions/variables" \
+            -d "{
+              \"name\": \"$var_name\",
+              \"value\": \"$var_value\"
+            }"
+        }
+        
+        # Set basic repository variables
+        set_repo_var "REPO_NAME" "${{ inputs.repo_name }}"
+        set_repo_var "REPO_DESCRIPTION" "${{ inputs.repo_description }}"
+        set_repo_var "REPO_VISIBILITY" "${{ inputs.repo_visibility }}"
+        set_repo_var "TEMPLATE_REPO" "${{ inputs.template_owner }}/${{ inputs.template_repo }}"
+        set_repo_var "CREATED_AT" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+    - name: Wait for repository initialization
+      if: steps.check_repo.outputs.created == 'true'
+      shell: bash
+      run: |
+        echo "Waiting for repository initialization to complete..."
+        for i in {1..30}; do
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${{ inputs.token }}" \
+            "https://api.github.com/repos/${{ inputs.owner }}/${{ inputs.repo_name }}/contents")
+          if [ "$HTTP_STATUS" -eq "200" ]; then
+            echo "Repository initialization completed"
+            break
+          fi
+          if [ "$i" -eq 30 ]; then
+            echo "Timeout waiting for repository initialization"
+            exit 1
+          fi
+          sleep 2
+        done
