@@ -1,0 +1,199 @@
+{
+  /*
+   * WORKSPACE REQUEST TEMPLATE
+   * ==========================
+   * This template provides a structure for requesting one or more workspaces.
+   * - Fields marked with [REQUIRED] must be filled in
+   * - Replace all placeholder text within brackets with your actual values
+   * - For array fields, copy the template entries as needed
+   */
+
+  /* [REQUIRED] Service request ticket number (format: SR followed by 6 digits) */
+  "serviceRequest": "SR123456",
+
+  /* [REQUIRED] List of workspaces to be created (at least one required) */
+  "workspaces": [
+    {
+      /*
+       * WORKSPACE DETAILS
+       * =================
+       * Core information about the workspace
+       */
+
+      /* [REQUIRED] Name of the workspace (lowercase letters, numbers, hyphens, 3-30 chars) */
+      "workspaceName": "dev-workspace",
+
+      /* [REQUIRED] Business unit to which this workspace belongs (2-50 chars) */
+      "businessUnit": "engineering",
+
+      /* [REQUIRED] Name of the project this workspace is associated with (3-100 chars) */
+      "projectName": "Trade Finance",
+
+      /* [REQUIRED] Short name for the platform (lowercase letters, numbers, hyphens, 3-20 chars) */
+      "platformShortName": "cloud-hosting",
+
+      /* [REQUIRED] Full platform name (3-100 chars) */
+      "platformName": "GTS-Cloud-Hosting",
+
+      /* [REQUIRED] Technical Service Owner code (uppercase letters, numbers, 3-10 chars) */
+      "tso": "TFP1",
+
+      /* [REQUIRED] Cost center for billing (3-100 chars) */
+      "costCenter": "Cloud Hosting Platform",
+
+      /* [REQUIRED] Service Configuration Item ID (uppercase letters, numbers, 5-15 chars) */
+      "serviceCi": "AAAAA",
+
+      /* [REQUIRED] Application Configuration Item ID (uppercase letters, numbers, 5-15 chars) */
+      "applicationCi": "XXXXX",
+
+      /* [REQUIRED] Environment classification ("prod" or "non-prod") */
+      "environment": "non-prod",
+
+      /* [REQUIRED] Specific type of environment ("development", "testing", "staging", or "production") */
+      "environmentType": "development",
+
+      /* [REQUIRED] Description of the landing zone (5-500 chars) */
+      "landingZoneDescription": "aaaaaa",
+
+      /* [REQUIRED] General Manager responsible for the landing zone (3-100 chars) */
+      "landingZoneGM": "XXX YYYY",
+
+      /*
+       * NETWORKING CONFIGURATION
+       * =======================
+       * Network settings for the workspace
+       */
+      "networking": {
+        /* [REQUIRED] Number of availability zones required (valid values: "1", "2", "3") */
+        "availabilityZoneNeeded": "3",
+
+        /* [REQUIRED] CIDR notation for IP addresses per AZ for the IC Zone ("/24", "/25", "/26", "/27", "/28") */
+        "ipAddressesPerAZForICZone": "/24",
+
+        /* [REQUIRED] CIDR notation for IP addresses per AZ for the RES Zone ("/24", "/25", "/26", "/27", "/28") */
+        "ipAddressesPerAZForRESZone": "/26",
+
+        /* [REQUIRED] CIDR notation for IP addresses per AZ for the SEC Zone ("/24", "/25", "/26", "/27", "/28") */
+        "ipAddressesPerAZForSECZone": "/28",
+
+        /* [REQUIRED] CIDR notation for IP addresses per AZ for the MGMT Zone ("/24", "/25", "/26", "/27", "/28") */
+        "ipAddressesPerAZForMGMTZone": "/28",
+
+        /* [REQUIRED] CIDR notation for IP addresses per AZ for the ECCF Zone ("/24", "/25", "/26", "/27", "/28") */
+        "ipAddressesPerAZForECCFZone": "/28"
+      },
+
+      /* [REQUIRED] Classification of data for security purposes
+         (valid values: "public", "internal", "confidential", "customer-sensitive", "restricted") */
+      "dataClassification": "customer-sensitive",
+
+      /*
+       * ADMINISTRATORS
+       * ==============
+       * List of administrators for this landing zone (at least one required)
+       */
+      "landingZoneAdministrators": [
+        {
+          /* [REQUIRED] Full name of the administrator (3-100 chars) */
+          "name": "John Doe",
+
+          /* [REQUIRED] Email address of the administrator (valid email format) */
+          "email": "john@example.com",
+
+          /* [REQUIRED] Employee ID of the administrator (format: EMP followed by 6 digits) */
+          "employeeId": "EMP123456",
+
+          /* [REQUIRED] System identifier/username for the administrator
+             (starts with lowercase letter, letters and numbers only, 4-20 chars) */
+          "identifier": "jdoe2024"
+        },
+        /* Additional administrator - copy and modify this block as needed */
+        {
+          "name": "Mary Smith",
+          "email": "mary@example.com",
+          "employeeId": "EMP234567",
+          "identifier": "msmith2024"
+        }
+      ],
+
+      /* [REQUIRED] Business justification for creating this workspace (10-2000 chars) */
+      "businessJustification": "Account needed for TFE provisioning.",
+
+      /*
+       * SERVICE ACCOUNTS
+       * ===============
+       * List of service accounts required (at least one required)
+       */
+      "serviceAccounts": [
+        {
+          /* [REQUIRED] Type of service account (valid values: "VM", "API", "DB", "APP") */
+          "type": "VM",
+
+          /* [REQUIRED] Name of the service account (lowercase letters, numbers, underscores, 3-50 chars) */
+          "name": "acoe_ecdp_cicd_i_np"
+        },
+        /* Additional service account - copy and modify this block as needed */
+        {
+          "type": "VM",
+          "name": "acoe_ecdp_cicd_i_p"
+        }
+      ],
+
+      /*
+       * REPOSITORY SETTINGS
+       * ==================
+       * Settings for code repositories
+       */
+      "repositorySettings": {
+        /* [REQUIRED] Name of existing custom repository, if any (3-100 chars) */
+        "existingCustomRepoName": "dev-customer-repo",
+
+        /* [REQUIRED] Organization name for the repository (lowercase letters, numbers, hyphens, 3-50 chars) */
+        "organizationName": "org-central",
+
+        /* [REQUIRED] Name for the new application repository (lowercase letters, numbers, hyphens, 3-50 chars) */
+        "newApplicationRepoName": "test-app-repo"
+      },
+
+      /*
+       * BACKUP OPTIONS
+       * =============
+       * Options for Commvault backups (at least one configuration required)
+       */
+      "commvaultBackupOptions": [
+        {
+          /* [REQUIRED] Preferred time window for backups (24-hour format, HH:MM) */
+          "preferredBackupWindow": "09:00",
+
+          /* [REQUIRED] List of services to include in backups (valid values: "EC2", "S3", "RDS",
+             "DynamoDB", "EFS", "EBS", "Lambda") */
+          "servicesToBackup": ["EC2", "S3"]
+        }
+      ],
+
+      /*
+       * PATCHING POLICY
+       * ==============
+       * Policy for system patching
+       */
+      "patchingPolicy": {
+        /* [REQUIRED] Frequency of patching (valid values: "weekly", "biweekly", "monthly") */
+        "patchingFrequency": "monthly",
+
+        /* [REQUIRED] Day of the week for patching
+           (valid values: "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday") */
+        "patchingDay": "sunday",
+
+        /* [REQUIRED] Time window for patching (24-hour format with range, HHMM-HHMM) */
+        "patchingWindow": "0200-0400"
+      }
+    }
+    /*
+     * ADDITIONAL WORKSPACES
+     * ====================
+     * To add more workspaces, copy the entire workspace object (from opening { to closing })
+     * and paste it here, then modify the values as needed.
+     */
+  ]
+}

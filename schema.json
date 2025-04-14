@@ -1,0 +1,320 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Workspace Request Schema",
+  "description": "Schema for requesting new workspaces with detailed configuration",
+  "type": "object",
+  "required": ["serviceRequest", "workspaces"],
+  "properties": {
+    "serviceRequest": {
+      "type": "string",
+      "description": "The service request ticket number associated with this request",
+      "pattern": "^SR\\d{6}$",
+      "examples": ["SR123456"]
+    },
+    "workspaces": {
+      "type": "array",
+      "description": "List of workspaces to be created",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "workspaceName", "businessUnit", "projectName", "platformShortName",
+          "platformName", "tso", "costCenter", "serviceCi", "applicationCi",
+          "environment", "environmentType", "landingZoneDescription", "landingZoneGM",
+          "networking", "dataClassification", "landingZoneAdministrators",
+          "businessJustification", "serviceAccounts", "repositorySettings",
+          "commvaultBackupOptions", "patchingPolicy"
+        ],
+        "properties": {
+          "workspaceName": {
+            "type": "string",
+            "description": "Name of the workspace",
+            "pattern": "^[a-z0-9-]{3,30}$",
+            "examples": ["dev-workspace"]
+          },
+          "businessUnit": {
+            "type": "string",
+            "description": "Business unit to which this workspace belongs",
+            "minLength": 2,
+            "maxLength": 50,
+            "examples": ["engineering"]
+          },
+          "projectName": {
+            "type": "string",
+            "description": "Name of the project this workspace is associated with",
+            "minLength": 3,
+            "maxLength": 100,
+            "examples": ["Trade Finance"]
+          },
+          "platformShortName": {
+            "type": "string",
+            "description": "Short name for the platform",
+            "pattern": "^[a-z0-9-]{3,20}$",
+            "examples": ["cloud-hosting"]
+          },
+          "platformName": {
+            "type": "string",
+            "description": "Full platform name",
+            "minLength": 3,
+            "maxLength": 100,
+            "examples": ["GTS-Cloud-Hosting"]
+          },
+          "tso": {
+            "type": "string",
+            "description": "Technical Service Owner code",
+            "pattern": "^[A-Z0-9]{3,10}$",
+            "examples": ["TFP1"]
+          },
+          "costCenter": {
+            "type": "string",
+            "description": "Cost center for billing",
+            "minLength": 3,
+            "maxLength": 100,
+            "examples": ["Cloud Hosting Platform"]
+          },
+          "serviceCi": {
+            "type": "string",
+            "description": "Service Configuration Item ID",
+            "pattern": "^[A-Z0-9]{5,15}$",
+            "examples": ["AAAAA"]
+          },
+          "applicationCi": {
+            "type": "string",
+            "description": "Application Configuration Item ID",
+            "pattern": "^[A-Z0-9]{5,15}$",
+            "examples": ["XXXXX"]
+          },
+          "environment": {
+            "type": "string",
+            "description": "Environment classification",
+            "enum": ["prod", "non-prod"],
+            "examples": ["non-prod"]
+          },
+          "environmentType": {
+            "type": "string",
+            "description": "Specific type of environment",
+            "enum": ["development", "testing", "staging", "production"],
+            "examples": ["development"]
+          },
+          "landingZoneDescription": {
+            "type": "string",
+            "description": "Description of the landing zone",
+            "minLength": 5,
+            "maxLength": 500,
+            "examples": ["Landing zone for development environment"]
+          },
+          "landingZoneGM": {
+            "type": "string",
+            "description": "General Manager responsible for the landing zone",
+            "minLength": 3,
+            "maxLength": 100,
+            "examples": ["XXX YYYY"]
+          },
+          "networking": {
+            "type": "object",
+            "description": "Network configuration details",
+            "required": [
+              "availabilityZoneNeeded", "ipAddressesPerAZForICZone",
+              "ipAddressesPerAZForRESZone", "ipAddressesPerAZForSECZone",
+              "ipAddressesPerAZForMGMTZone", "ipAddressesPerAZForECCFZone"
+            ],
+            "properties": {
+              "availabilityZoneNeeded": {
+                "type": "string",
+                "description": "Number of availability zones required",
+                "enum": ["1", "2", "3"],
+                "examples": ["3"]
+              },
+              "ipAddressesPerAZForICZone": {
+                "type": "string",
+                "description": "CIDR notation for IP addresses per AZ for the IC Zone",
+                "pattern": "^\\/[0-9]{1,2}$",
+                "enum": ["/24", "/25", "/26", "/27", "/28"],
+                "examples": ["/24"]
+              },
+              "ipAddressesPerAZForRESZone": {
+                "type": "string",
+                "description": "CIDR notation for IP addresses per AZ for the RES Zone",
+                "pattern": "^\\/[0-9]{1,2}$",
+                "enum": ["/24", "/25", "/26", "/27", "/28"],
+                "examples": ["/26"]
+              },
+              "ipAddressesPerAZForSECZone": {
+                "type": "string",
+                "description": "CIDR notation for IP addresses per AZ for the SEC Zone",
+                "pattern": "^\\/[0-9]{1,2}$",
+                "enum": ["/24", "/25", "/26", "/27", "/28"],
+                "examples": ["/28"]
+              },
+              "ipAddressesPerAZForMGMTZone": {
+                "type": "string",
+                "description": "CIDR notation for IP addresses per AZ for the MGMT Zone",
+                "pattern": "^\\/[0-9]{1,2}$",
+                "enum": ["/24", "/25", "/26", "/27", "/28"],
+                "examples": ["/28"]
+              },
+              "ipAddressesPerAZForECCFZone": {
+                "type": "string",
+                "description": "CIDR notation for IP addresses per AZ for the ECCF Zone",
+                "pattern": "^\\/[0-9]{1,2}$",
+                "enum": ["/24", "/25", "/26", "/27", "/28"],
+                "examples": ["/28"]
+              }
+            }
+          },
+          "dataClassification": {
+            "type": "string",
+            "description": "Classification of data for security purposes",
+            "enum": ["public", "internal", "confidential", "customer-sensitive", "restricted"],
+            "examples": ["customer-sensitive"]
+          },
+          "landingZoneAdministrators": {
+            "type": "array",
+            "description": "List of administrators for this landing zone",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "email", "employeeId", "identifier"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Full name of the administrator",
+                  "minLength": 3,
+                  "maxLength": 100,
+                  "examples": ["John Doe"]
+                },
+                "email": {
+                  "type": "string",
+                  "description": "Email address of the administrator",
+                  "format": "email",
+                  "examples": ["john@example.com"]
+                },
+                "employeeId": {
+                  "type": "string",
+                  "description": "Employee ID of the administrator",
+                  "pattern": "^EMP[0-9]{6}$",
+                  "examples": ["EMP123456"]
+                },
+                "identifier": {
+                  "type": "string",
+                  "description": "System identifier/username for the administrator",
+                  "pattern": "^[a-z][a-z0-9]{3,19}$",
+                  "examples": ["jdoe2024"]
+                }
+              }
+            }
+          },
+          "businessJustification": {
+            "type": "string",
+            "description": "Business justification for creating this workspace",
+            "minLength": 10,
+            "maxLength": 2000,
+            "examples": ["Account needed for TFE provisioning."]
+          },
+          "serviceAccounts": {
+            "type": "array",
+            "description": "List of service accounts required",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["type", "name"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Type of service account",
+                  "enum": ["VM", "API", "DB", "APP"],
+                  "examples": ["VM"]
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name of the service account",
+                  "pattern": "^[a-z0-9_]{3,50}$",
+                  "examples": ["acoe_ecdp_cicd_i_np"]
+                }
+              }
+            }
+          },
+          "repositorySettings": {
+            "type": "object",
+            "description": "Settings for code repositories",
+            "required": ["existingCustomRepoName", "organizationName", "newApplicationRepoName"],
+            "properties": {
+              "existingCustomRepoName": {
+                "type": "string",
+                "description": "Name of existing custom repository, if any",
+                "minLength": 3,
+                "maxLength": 100,
+                "examples": ["dev-customer-repo"]
+              },
+              "organizationName": {
+                "type": "string",
+                "description": "Organization name for the repository",
+                "pattern": "^[a-z0-9-]{3,50}$",
+                "examples": ["org-central"]
+              },
+              "newApplicationRepoName": {
+                "type": "string",
+                "description": "Name for the new application repository",
+                "pattern": "^[a-z0-9-]{3,50}$",
+                "examples": ["test-app-repo"]
+              }
+            }
+          },
+          "commvaultBackupOptions": {
+            "type": "array",
+            "description": "Options for Commvault backups",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["preferredBackupWindow", "servicesToBackup"],
+              "properties": {
+                "preferredBackupWindow": {
+                  "type": "string",
+                  "description": "Preferred time window for backups (24-hour format)",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "examples": ["09:00"]
+                },
+                "servicesToBackup": {
+                  "type": "array",
+                  "description": "List of services to include in backups",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "description": "Service to backup",
+                    "enum": ["EC2", "S3", "RDS", "DynamoDB", "EFS", "EBS", "Lambda"],
+                    "examples": ["EC2", "S3"]
+                  }
+                }
+              }
+            }
+          },
+          "patchingPolicy": {
+            "type": "object",
+            "description": "Policy for system patching",
+            "required": ["patchingFrequency", "patchingDay", "patchingWindow"],
+            "properties": {
+              "patchingFrequency": {
+                "type": "string",
+                "description": "Frequency of patching",
+                "enum": ["weekly", "biweekly", "monthly"],
+                "examples": ["monthly"]
+              },
+              "patchingDay": {
+                "type": "string",
+                "description": "Day of the week for patching",
+                "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+                "examples": ["sunday"]
+              },
+              "patchingWindow": {
+                "type": "string",
+                "description": "Time window for patching (24-hour format with range)",
+                "pattern": "^([01]?[0-9]|2[0-3])[0-5][0-9]-([01]?[0-9]|2[0-3])[0-5][0-9]$",
+                "examples": ["0200-0400"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

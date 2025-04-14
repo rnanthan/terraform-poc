@@ -1,0 +1,70 @@
+{
+  "serviceRequest": "SR123456",
+  "workspaces": [
+    {
+      "workspaceName": "dev-workspace",
+      "businessUnit": "engineering",
+      "projectName": "Trade Finance",
+      "platformShortName": "cloud-hosting",
+      "platformName": "GTS-Cloud-Hosting",
+      "tso": "TFP1",
+      "costCenter": "Cloud Hosting Platform",
+      "serviceCi": "AAAAA",
+      "applicationCi": "XXXXX",
+      "environment": "non-prod",
+      "environmentType": "development",
+      "landingZoneDescription": "aaaaaa",
+      "landingZoneGM": "XXX YYYY",
+      "networking": {
+        "availabilityZoneNeeded": "3",
+        "ipAddressesPerAZForICZone": "/24",
+        "ipAddressesPerAZForRESZone": "/26",
+        "ipAddressesPerAZForSECZone": "/28",
+        "ipAddressesPerAZForMGMTZone": "/28",
+        "ipAddressesPerAZForECCFZone": "/28"
+      },
+      "dataClassification": "customer-sensitive",
+      "landingZoneAdministrators": [
+        {
+          "name": "John Doe",
+          "email": "john@example.com",
+          "employeeId": "EMP123456",
+          "identifier": "jdoe2024"
+        },
+        {
+          "name": "Mary Smith",
+          "email": "mary@example.com",
+          "employeeId": "EMP234567",
+          "identifier": "msmith2024"
+        }
+      ],
+      "businessJustification": "Account needed for TFE provisioning.",
+      "serviceAccounts": [
+        {
+          "type": "VM",
+          "name": "acoe_ecdp_cicd_i_np"
+        },
+        {
+          "type": "VM",
+          "name": "acoe_ecdp_cicd_i_p"
+        }
+      ],
+      "repositorySettings": {
+        "existingCustomRepoName": "dev-customer-repo",
+        "organizationName": "org-central",
+        "newApplicationRepoName": "test-app-repo"
+      },
+      "commvaultBackupOptions": [
+        {
+          "preferredBackupWindow": "09:00",
+          "servicesToBackup": ["EC2", "S3"]
+        }
+      ],
+      "patchingPolicy": {
+        "patchingFrequency": "monthly",
+        "patchingDay": "sunday",
+        "patchingWindow": "0200-0400"
+      }
+    }
+  ]
+}
