@@ -1,0 +1,56 @@
+User: "What is the status the landing zone request, <RequestNo>?"
+Bot: "Your landing zone is 73% complete. Currently deploying IAM. ETA: 45 minutes. No issues detected."
+
+User: "What is the status the landing zone request, <RequestNo>"
+Bot: "You landing zone creation failed due to insufficient quota for IP address. I've submitted quota increase request #SR-12345. Typical approval time is 2-4 hours."
+
+
+
+Create vector database with common issues:
+python# Store in Amazon OpenSearch or Pinecone
+knowledge_base_docs = [
+    {
+        "issue": "VPC Quota Exceeded",
+        "solution": "Request quota increase in Service Quotas console",
+        "typical_resolution_time": "2-4 hours"
+    },
+    {
+        "issue": "IAM Permission Denied",
+        "solution": "Check Control Tower service role permissions",
+        "typical_resolution_time": "15-30 minutes"
+    }
+    # Add more common issues
+]
+
+
+ A[User: "Status of LZ-XXX?"] --> B[Claude Model]
+ B --> C{Analyze Intent}
+    C --> D[Call get_landing_zone_status('LZ-Alpha')]
+    D --> E[Lambda Function]
+    E --> F[AWS APIs: Control Tower, CloudFormation]
+    F --> G[Raw Status Data]
+    G --> H[Claude Model Processes Response]
+    H --> I[Natural Language Response to User]
+
+
+Contextual Responses:
+python# Raw API Response:
+{
+  "status": "CREATE_IN_PROGRESS",
+  "progress": 45,
+  "stacks": [{"name": "SecurityBaseline", "status": "CREATE_FAILED"}]
+}
+
+# GenAI Model Transforms to:
+"I see your landing zone deployment is experiencing an issue.
+The security baseline stack failed during creation, which has
+paused the overall progress at 45%. Let me check what specifically
+went wrong..."
+
+
+Raw Response
+{
+  "status": "CREATE_IN_PROGRESS",
+  "progress": 45,
+  "stacks": [{"name": "SecurityBaseline", "status": "CREATE_FAILED"}]
+}
